@@ -1,0 +1,121 @@
+---
+title: "DA5030 Naive Bayes"
+author: "Kiefer, Liz"
+date: "Spring, 2026"
+output:
+  html_document:
+    df_print: paged
+---
+
+
+```{r q2_load.csv, echo = T, warning = F}
+
+library(e1071)
+df <- read.csv("https://s3.us-east-2.amazonaws.com/artificium.us/datasets/HouseVotes-1984-ButOne.csv", stringsAsFactors = FALSE) 
+head(df,5)
+
+```
+
+```{r q3_create.random.sample, echo = T, warning = F}
+
+# Making two empty lists 
+training_data <- list()
+validation_data <- list()
+
+#Iterating over data to choose random samples for out sets. 
+for (i in 1:5) {
+  train.sample <- sample(1:nrow(df), size = 350)
+  # For training data we get 350 random samples 
+  training_data[[i]] <- df[train.sample, ]
+  # For val data we do what is left 
+  validation_data[[i]] <- df[-train.sample, ]}
+
+```
+
+```{r q4_train.Naive.Bayes.Class, echo = T, warning = F}
+
+# Empty list for models
+nb_models <- list()
+
+# Training model using package e1071 and iterating through our training datat to collect the 5 models and placing them in the list
+for (i in 1:5) {
+  nb_models[[i]] <- naiveBayes(
+    x = training_data[[i]][, -1],
+    y = training_data[[i]][, 1])}
+
+```
+
+```{r q5_build.function, echo = T, warning = F}
+
+# Function to use on our prediction
+predict_party <- function(models, new_cases) {
+  pred_matrix <- matrix(nrow = nrow(new_cases), ncol = length(models))
+  
+  # Making prediction of party
+  for (i in 1:length(models)) {
+    pred_matrix[, i] <- predict(models[[i]], new_cases)
+  }
+  final_predictions <- apply(pred_matrix, 1, function(row) {
+    names(which.max(table(row)))
+  })
+  
+  return(final_predictions)
+}
+    
+```
+
+
+```{r q6_validating, echo = T, warning = F}
+
+# Using our function on our validation dataset
+predictions <- predict_party(nb_models, validation_data[[1]][, -1])
+
+# also listing our actual data to be able to do math on our rates
+actual <- validation_data[[1]][, 1] 
+
+# Putting prediction in a table to be able to see the numbers
+pred_matrix <- table(Predicted = predictions, Actual = actual)
+pred_matrix
+
+# Accessing our table of prediction and saving it to a variable for math use later
+TP <- pred_matrix[1, 1]  
+FP <- pred_matrix[1, 2]  
+FN <- pred_matrix[2, 1]  
+TN <- pred_matrix[2, 2]  
+
+# Below we calculate the accuracy, true positive rate, and true negative rate
+accuracy <- round((TP + TN) / sum(pred_matrix) * 100, 2)
+TPR <- round(TP / (TP + FN) * 100, 2)
+TNR <- round(TN / (TN + FP) * 100, 2)
+
+# The the accuracy, true positive rate, and true negative rate are put into a dataframe for display
+data.frame(
+  Metric = c("Accuracy", "True Positive Rate", "True Negative Rate"),
+  Value = c(accuracy, TPR, TNR)
+)
+
+```
+
+
+```{r q7_guessing.party, echo = T, warning = F}
+
+# Before we can make a guess on the member's party, I had to put the member's voting record into a dataframe to be able to use with our function
+member_party <- data.frame(
+  V1 = "n", V2 = "y", V3 = "n", V4 = "n", V5 = "y",
+  V6 = "y", V7 = "y", V8 = "n", V9 = "n", V10 = "y",
+  V11 = "n", V12 = "y", V13 = "y", V14 = "y", V15 = NA, V16 = "n")
+
+# Guessing a members party based on our prediction
+predictions <- predict_party(nb_models, member_party)
+
+# Printing what prediction we came up with
+predictions
+
+# I think the way this package works will give us either a 1 which will be Democrat or a 2 which will be Republican. I decided to make it so that it prints out the party name when we  make a prediction
+ if (predictions == 1){
+   print("Democrat")
+ }else {
+    print("Republican")}
+
+# I also was not sure if I should make a seed but every single time I did it, it always gave me the same answer so I decided to not make a seed
+```
